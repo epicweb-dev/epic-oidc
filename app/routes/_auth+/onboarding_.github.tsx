@@ -4,7 +4,7 @@ import {
 	json,
 	redirect,
 	type DataFunctionArgs,
-	type MetaFunction,
+	type V2_MetaFunction,
 } from '@remix-run/node'
 import {
 	Form,
@@ -14,66 +14,88 @@ import {
 } from '@remix-run/react'
 import { safeRedirect } from 'remix-utils'
 import { z } from 'zod'
-import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
-import { Spacer } from '#app/components/spacer.tsx'
-import { StatusButton } from '#app/components/ui/status-button.tsx'
-import { requireAnonymous, sessionKey, signup } from '#app/utils/auth.server.ts'
-import { redirectWithConfetti } from '#app/utils/confetti.server.ts'
-import { prisma } from '#app/utils/db.server.ts'
-import { invariant, useIsPending } from '#app/utils/misc.tsx'
-import { sessionStorage } from '#app/utils/session.server.ts'
+import { CheckboxField, ErrorList, Field } from '../../components/forms.tsx'
+import { Spacer } from '../../components/spacer.tsx'
+import { StatusButton } from '../../components/ui/status-button.tsx'
 import {
-	NameSchema,
-	PasswordSchema,
-	UsernameSchema,
-} from '#app/utils/user-validation.ts'
-import { verifySessionStorage } from '#app/utils/verification.server.ts'
+	authenticator,
+	requireAnonymous,
+	sessionKey,
+	signupWithConnection,
+} from '../../utils/auth.server.ts'
+import { redirectWithConfetti } from '../../utils/confetti.server.ts'
+import { prisma } from '../../utils/db.server.ts'
+import { GITHUB_PROVIDER_NAME } from '../../utils/github-auth.server.ts'
+import { invariant, useIsPending } from '../../utils/misc.tsx'
+import { sessionStorage } from '../../utils/session.server.ts'
+import { NameSchema, UsernameSchema } from '../../utils/user-validation.ts'
+import { verifySessionStorage } from '../../utils/verification.server.ts'
 import { type VerifyFunctionArgs } from './verify.tsx'
 
-const onboardingEmailSessionKey = 'onboardingEmail'
+export const onboardingEmailSessionKey = 'onboardingEmail'
+export const githubIdKey = 'ghProfileId'
+export const prefilledProfileKey = 'prefilledProfile'
 
-const SignupFormSchema = z
-	.object({
-		username: UsernameSchema,
-		name: NameSchema,
-		password: PasswordSchema,
-		confirmPassword: PasswordSchema,
-		agreeToTermsOfServiceAndPrivacyPolicy: z.boolean({
-			required_error:
-				'You must agree to the terms of service and privacy policy',
-		}),
-		remember: z.boolean().optional(),
-		redirectTo: z.string().optional(),
-	})
-	.superRefine(({ confirmPassword, password }, ctx) => {
-		if (confirmPassword !== password) {
-			ctx.addIssue({
-				path: ['confirmPassword'],
-				code: 'custom',
-				message: 'The passwords must match',
-			})
-		}
-	})
+const SignupFormSchema = z.object({
+	imageUrl: z.string().optional(),
+	username: UsernameSchema,
+	name: NameSchema,
+	agreeToTermsOfServiceAndPrivacyPolicy: z.boolean({
+		required_error: 'You must agree to the terms of service and privacy policy',
+	}),
+	remember: z.boolean().optional(),
+	redirectTo: z.string().optional(),
+})
 
-async function requireOnboardingEmail(request: Request) {
+async function requireOnboardingEmailAndGitHubId(request: Request) {
 	await requireAnonymous(request)
 	const verifySession = await verifySessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
 	const email = verifySession.get(onboardingEmailSessionKey)
-	if (typeof email !== 'string' || !email) {
-		throw redirect('/signup')
+	const gitHubId = verifySession.get(githubIdKey)
+	const result = z
+		.object({ email: z.string(), gitHubId: z.string() })
+		.safeParse({ email, gitHubId: gitHubId })
+	if (result.success) {
+		return result.data
 	}
-	return email
+	throw redirect('/signup')
 }
+
 export async function loader({ request }: DataFunctionArgs) {
-	const email = await requireOnboardingEmail(request)
-	return json({ email })
+	const { email } = await requireOnboardingEmailAndGitHubId(request)
+	const cookieSession = await sessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const prefilledProfile = verifySession.get(prefilledProfileKey)
+
+	const formError = cookieSession.get(authenticator.sessionErrorKey)
+
+	return json({
+		email,
+		formError: typeof formError === 'string' ? formError : null,
+		status: 'idle',
+		submission: {
+			intent: '',
+			payload: (prefilledProfile ?? {}) as {},
+			error: {
+				'': typeof formError === 'string' ? [formError] : [],
+			},
+		},
+	})
 }
 
 export async function action({ request }: DataFunctionArgs) {
-	const email = await requireOnboardingEmail(request)
+	const { email, gitHubId } = await requireOnboardingEmailAndGitHubId(request)
 	const formData = await request.formData()
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+
 	const submission = await parse(formData, {
 		schema: SignupFormSchema.superRefine(async (data, ctx) => {
 			const existingUser = await prisma.user.findUnique({
@@ -89,7 +111,12 @@ export async function action({ request }: DataFunctionArgs) {
 				return
 			}
 		}).transform(async data => {
-			const session = await signup({ ...data, email })
+			const session = await signupWithConnection({
+				...data,
+				email,
+				providerId: gitHubId,
+				providerName: GITHUB_PROVIDER_NAME,
+			})
 			return { ...data, session }
 		}),
 		async: true,
@@ -108,7 +135,6 @@ export async function action({ request }: DataFunctionArgs) {
 		request.headers.get('cookie'),
 	)
 	cookieSession.set(sessionKey, session.id)
-	const verifySession = await verifySessionStorage.getSession()
 	const headers = new Headers()
 	headers.append(
 		'set-cookie',
@@ -124,9 +150,14 @@ export async function action({ request }: DataFunctionArgs) {
 	return redirectWithConfetti(safeRedirect(redirectTo), { headers })
 }
 
-export async function handleVerification({ submission }: VerifyFunctionArgs) {
+export async function handleVerification({
+	request,
+	submission,
+}: VerifyFunctionArgs) {
 	invariant(submission.value, 'submission.value should be defined by now')
-	const verifySession = await verifySessionStorage.getSession()
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
 	verifySession.set(onboardingEmailSessionKey, submission.value.target)
 	return redirect('/onboarding', {
 		headers: {
@@ -135,7 +166,7 @@ export async function handleVerification({ submission }: VerifyFunctionArgs) {
 	})
 }
 
-export const meta: MetaFunction = () => {
+export const meta: V2_MetaFunction = () => {
 	return [{ title: 'Setup Epic Notes Account' }]
 }
 
@@ -147,10 +178,9 @@ export default function SignupRoute() {
 	const redirectTo = searchParams.get('redirectTo')
 
 	const [form, fields] = useForm({
-		id: 'onboarding-form',
+		id: 'signup-form',
 		constraint: getFieldsetConstraint(SignupFormSchema),
-		defaultValue: { redirectTo },
-		lastSubmission: actionData?.submission,
+		lastSubmission: actionData?.submission ?? data.submission,
 		onValidate({ formData }) {
 			return parse(formData, { schema: SignupFormSchema })
 		},
@@ -172,6 +202,19 @@ export default function SignupRoute() {
 					className="mx-auto min-w-[368px] max-w-sm"
 					{...form.props}
 				>
+					{fields.imageUrl.defaultValue ? (
+						<div className="mb-4 flex flex-col items-center justify-center gap-4">
+							<img
+								src={fields.imageUrl.defaultValue}
+								alt="Profile"
+								className="h-24 w-24 rounded-full"
+							/>
+							<p className="text-body-sm text-muted-foreground">
+								You can change your photo later
+							</p>
+							<input {...conform.input(fields.imageUrl, { type: 'hidden' })} />
+						</div>
+					) : null}
 					<Field
 						labelProps={{ htmlFor: fields.username.id, children: 'Username' }}
 						inputProps={{
@@ -188,26 +231,6 @@ export default function SignupRoute() {
 							autoComplete: 'name',
 						}}
 						errors={fields.name.errors}
-					/>
-					<Field
-						labelProps={{ htmlFor: fields.password.id, children: 'Password' }}
-						inputProps={{
-							...conform.input(fields.password, { type: 'password' }),
-							autoComplete: 'new-password',
-						}}
-						errors={fields.password.errors}
-					/>
-
-					<Field
-						labelProps={{
-							htmlFor: fields.confirmPassword.id,
-							children: 'Confirm Password',
-						}}
-						inputProps={{
-							...conform.input(fields.confirmPassword, { type: 'password' }),
-							autoComplete: 'new-password',
-						}}
-						errors={fields.confirmPassword.errors}
 					/>
 
 					<CheckboxField
@@ -231,7 +254,10 @@ export default function SignupRoute() {
 						errors={fields.remember.errors}
 					/>
 
-					<input {...conform.input(fields.redirectTo, { type: 'hidden' })} />
+					{redirectTo ? (
+						<input type="hidden" name="redirectTo" value={redirectTo} />
+					) : null}
+
 					<ErrorList errors={form.errors} id={form.errorId} />
 
 					<div className="flex items-center justify-between gap-6">
