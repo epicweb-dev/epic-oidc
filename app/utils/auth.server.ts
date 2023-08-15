@@ -3,15 +3,8 @@ import { redirect } from '@remix-run/node'
 import bcrypt from 'bcryptjs'
 import { Authenticator } from 'remix-auth'
 import { safeRedirect } from 'remix-utils'
+import { providers } from './connections.server.ts'
 import { prisma } from './db.server.ts'
-import {
-	GITHUB_PROVIDER_NAME,
-	getGitHubAuthStrategy,
-} from './github-auth.server.ts'
-import {
-	GOOGLE_PROVIDER_NAME,
-	getGoogleAuthStrategy,
-} from './google-auth.server.ts'
 import { combineHeaders, downloadFile } from './misc.tsx'
 import { sessionStorage } from './session.server.ts'
 
@@ -29,8 +22,9 @@ export const authenticator = new Authenticator<{
 	imageUrl?: string
 }>(sessionStorage)
 
-authenticator.use(getGitHubAuthStrategy(), GITHUB_PROVIDER_NAME)
-authenticator.use(getGoogleAuthStrategy(), GOOGLE_PROVIDER_NAME)
+for (const [providerName, provider] of Object.entries(providers)) {
+	authenticator.use(provider.getAuthStrategy(), providerName)
+}
 
 export async function getUserId(request: Request) {
 	const cookieSession = await sessionStorage.getSession(
