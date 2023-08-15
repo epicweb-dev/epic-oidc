@@ -230,6 +230,7 @@ export default function LoginPage() {
 	const actionData = useActionData<typeof action>()
 	const isPending = useIsPending()
 	const isGitHubSubmitting = useIsPending({ formAction: '/auth/github' })
+	const isGoogleSubmitting = useIsPending({ formAction: '/auth/google' })
 	const [searchParams] = useSearchParams()
 	const redirectTo = searchParams.get('redirectTo')
 
@@ -313,6 +314,24 @@ export default function LoginPage() {
 									Log in
 								</StatusButton>
 							</div>
+						</Form>
+						<Form
+							className="mt-5 flex items-center justify-center gap-2 border-t-2 border-border pt-3"
+							action="/auth/google"
+							method="POST"
+						>
+							<input
+								type="hidden"
+								name="redirectTo"
+								value={redirectTo ?? '/'}
+							/>
+							<StatusButton
+								type="submit"
+								className="w-full"
+								status={isGoogleSubmitting ? 'pending' : 'idle'}
+							>
+								Login with Google
+							</StatusButton>
 						</Form>
 						<Form
 							className="mt-5 flex items-center justify-center gap-2 border-t-2 border-border pt-3"

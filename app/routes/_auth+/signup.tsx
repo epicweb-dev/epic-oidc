@@ -104,6 +104,7 @@ export default function SignupRoute() {
 	const actionData = useActionData<typeof action>()
 	const isPending = useIsPending()
 	const isGitHubSubmitting = useIsPending({ formAction: '/auth/github' })
+	const isGoogleSubmitting = useIsPending({ formAction: '/auth/google' })
 	const [searchParams] = useSearchParams()
 	const redirectTo = searchParams.get('redirectTo')
 
@@ -144,6 +145,20 @@ export default function SignupRoute() {
 						disabled={isPending}
 					>
 						Submit
+					</StatusButton>
+				</Form>
+				<Form
+					className="mt-5 flex items-center justify-center gap-2 border-t-2 border-border pt-3"
+					action="/auth/github"
+					method="POST"
+				>
+					<input type="hidden" name="redirectTo" value={redirectTo ?? '/'} />
+					<StatusButton
+						type="submit"
+						className="w-full"
+						status={isGoogleSubmitting ? 'pending' : 'idle'}
+					>
+						Sign up with Google
 					</StatusButton>
 				</Form>
 				<Form

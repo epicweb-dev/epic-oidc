@@ -8,6 +8,10 @@ import {
 	GITHUB_PROVIDER_NAME,
 	getGitHubAuthStrategy,
 } from './github-auth.server.ts'
+import {
+	GOOGLE_PROVIDER_NAME,
+	getGoogleAuthStrategy,
+} from './google-auth.server.ts'
 import { combineHeaders, downloadFile } from './misc.tsx'
 import { sessionStorage } from './session.server.ts'
 
@@ -26,6 +30,7 @@ export const authenticator = new Authenticator<{
 }>(sessionStorage)
 
 authenticator.use(getGitHubAuthStrategy(), GITHUB_PROVIDER_NAME)
+authenticator.use(getGoogleAuthStrategy(), GOOGLE_PROVIDER_NAME)
 
 export async function getUserId(request: Request) {
 	const cookieSession = await sessionStorage.getSession(

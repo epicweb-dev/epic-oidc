@@ -6,6 +6,7 @@ import {
 import { Form, useFetcher, useLoaderData } from '@remix-run/react'
 import { useState } from 'react'
 import { z } from 'zod'
+import { GOOGLE_PROVIDER_NAME } from 'app/utils/google-auth.server.ts'
 import { Icon } from '../../components/ui/icon.tsx'
 import { StatusButton } from '../../components/ui/status-button.tsx'
 import {
@@ -54,6 +55,7 @@ async function resolveGitHubConnectionData(connection: {
 	const result = GitHubUserSchema.safeParse(rawJson)
 	return {
 		id: connection.id,
+		providerName: connection.providerName,
 		displayName: result.success ? result.data.login : 'Unknown',
 		link: result.success ? `https://github.com/${result.data.login}` : null,
 		createdAtFormatted: connection.createdAt.toLocaleString(),
@@ -68,6 +70,7 @@ export async function loader({ request }: DataFunctionArgs) {
 	})
 	const connections: Array<{
 		id: string
+		providerName: string
 		displayName: string
 		link?: string | null
 		createdAtFormatted: string
@@ -75,10 +78,18 @@ export async function loader({ request }: DataFunctionArgs) {
 	for (const connection of rawConnections) {
 		if (connection.providerName === GITHUB_PROVIDER_NAME) {
 			connections.push(await resolveGitHubConnectionData(connection))
+		} else if (connection.providerName === GOOGLE_PROVIDER_NAME) {
+			connections.push({
+				id: connection.id,
+				displayName: connection.providerId,
+				providerName: connection.providerName,
+				createdAtFormatted: connection.createdAt.toLocaleString(),
+			})
 		} else {
 			connections.push({
 				id: connection.id,
 				displayName: 'Unknown',
+				providerName: connection.providerName,
 				createdAtFormatted: connection.createdAt.toLocaleString(),
 			})
 		}
@@ -119,6 +130,7 @@ export async function action({ request }: DataFunctionArgs) {
 export default function Connections() {
 	const data = useLoaderData<typeof loader>()
 	const isGitHubSubmitting = useIsPending({ formAction: '/auth/github' })
+	const isGoogleSubmitting = useIsPending({ formAction: '/auth/google' })
 
 	return (
 		<div className="mx-auto max-w-md">
@@ -139,6 +151,19 @@ export default function Connections() {
 			) : (
 				<p>You don't have any connections yet.</p>
 			)}
+			<Form
+				className="mt-5 flex items-center justify-center gap-2 border-t-2 border-border pt-3"
+				action="/auth/google"
+				method="POST"
+			>
+				<StatusButton
+					type="submit"
+					className="w-full"
+					status={isGoogleSubmitting ? 'pending' : 'idle'}
+				>
+					<Icon name="google-logo">Connect with Google</Icon>
+				</StatusButton>
+			</Form>
 			<Form
 				className="mt-5 flex items-center justify-center gap-2 border-t-2 border-border pt-3"
 				action="/auth/github"
@@ -165,9 +190,15 @@ function Connection({
 }) {
 	const deleteFetcher = useFetcher<typeof action>()
 	const [infoOpen, setInfoOpen] = useState(false)
+	const icon =
+		{
+			[GITHUB_PROVIDER_NAME]: <Icon name="github-logo" />,
+			[GOOGLE_PROVIDER_NAME]: <Icon name="google-logo" />,
+		}[connection.providerName] ?? null
 	return (
 		<div className="flex justify-between gap-2">
-			<Icon name="github-logo">
+			<div className="flex items-center gap-2">
+				{icon}
 				{connection.link ? (
 					<a href={connection.link} className="underline">
 						{connection.displayName}
@@ -176,7 +207,7 @@ function Connection({
 					connection.displayName
 				)}{' '}
 				({connection.createdAtFormatted})
-			</Icon>
+			</div>
 			{canDelete ? (
 				<deleteFetcher.Form method="POST">
 					<input name="connectionId" value={connection.id} type="hidden" />

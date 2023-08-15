@@ -95,6 +95,7 @@
     "tailwindcss": "^3.3.3",
     "tailwindcss-animate": "^1.0.6",
     "tailwindcss-radix": "^2.8.0",
+    "web-oidc": "^0.0.19",
     "zod": "^3.21.4"
   },
   "devDependencies": {
