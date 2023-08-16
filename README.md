@@ -1,5 +1,7 @@
 # Epic OIDC Example
 
+[![A frame from a screen cast video of Kent demonstrating the connections page from this demo](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/260885255-938f0150-51a6-47ae-a9ae-daa09c0c6b9d.png)](https://www.epicweb.dev/tips/add-open-id-connect-auth-to-the-epic-stack)
+
 This is an
 [Epic Stack example](https://github.com/epicweb-dev/epic-stack/blob/main/docs/examples.md)
 which demonstrates how to implement authentication using an OpenID Connect
