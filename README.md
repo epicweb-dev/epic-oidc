@@ -1,54 +1,57 @@
-<div align="center">
-  <h1 align="center"><a href="https://www.epicweb.dev/epic-stack">The Epic Stack 🚀</a></h1>
-  <strong align="center">
-    Ditch analysis paralysis and start shipping Epic Web apps.
-  </strong>
-  <p>
-    This is an opinionated project starter and reference that allows teams to
-    ship their ideas to production faster and on a more stable foundation based
-    on the experience of <a href="https://kentcdodds.com">Kent C. Dodds</a> and
-    <a href="https://github.com/epicweb-dev/epic-stack/graphs/contributors">contributors</a>.
-  </p>
-</div>
+# Epic OIDC Example
 
-```sh
-npx create-remix@latest --typescript --install --template epicweb-dev/epic-stack
-```
+This is an
+[Epic Stack example](https://github.com/epicweb-dev/epic-stack/blob/main/docs/examples.md)
+which demonstrates how to implement authentication using an OpenID Connect
+provider.
 
-[![The Epic Stack](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/246885449-1b00286c-aa3d-44b2-9ef2-04f694eb3592.png)](https://www.epicweb.dev/epic-stack)
+In this example, we have three forms of authentication:
 
-[The Epic Stack](https://www.epicweb.dev/epic-stack)
+1. Username/password (built-into the Epic Stack)
+2. GitHub OAuth2 (built-into the Epic Stack)
+3. Google OpenID Connect (implemented in this example)
 
-<hr />
+There are no database schema changes necessary for adding an OIDC provider (like
+Google). There are two ways to go about adding another auth provider.
 
-## Watch Kent's Introduction to The Epic Stack
+1. You can duplicate a lot of the GitHub auth code because much of it will be
+   the same. I did that in
+   [this commit](https://github.com/kentcdodds/epic-oidc/commit/229f8a0f7be9e9d19f5baf8b583f88acf98f749c).
+2. You can make the provider stuff generic and use it for both GitHub and OIDC,
+   which is what the final version of this repository looks like (and what I
+   would recommend if you plan on having more than one auth provider). You'll
+   find that work in
+   [this commit](https://github.com/kentcdodds/epic-oidc/commit/282052c43469e5f01dcfc8b1247b7c9e4d1f0391)
+   which builds on the first.
 
-[![screenshot of a YouTube video](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/242088051-6beafa78-41c6-47e1-b999-08d3d3e5cb57.png)](https://www.youtube.com/watch?v=yMK5SVRASxM)
+This example uses [web-oidc](https://npm.im/web-oidc) and
+[remix-auth](https://npm.im/remix-auth) to implement the OIDC authentication
+flow. This example doesn't deal with refresh tokens because we're only using the
+OIDC provider for authentication. If you need to use refresh tokens, then you'll
+need to store them in a database and use them to get new access tokens when
+necessary.
 
-["The Epic Stack" by Kent C. Dodds at #RemixConf 2023 💿](https://www.youtube.com/watch?v=yMK5SVRASxM)
+## Adding a new Auth Provider
 
-## Docs
+Because we've made the auth provider generic, adding a new one is relatively
+straightforward:
 
-[Read the docs](https://github.com/epicweb-dev/epic-stack/blob/main/docs)
-(please 🙏).
+1. Add the provider's name in
+   [`app/utils/connections.tsx`](./app/utils/connections.tsx)
+   (`export const {YOUR_AUTH_PROVIDER}_PROVIDER_NAME = 'your-auth-provider'`)
+   and add that to the `providerNames` array. This will create type errors which
+   once fixed, will ensure that you've updated all the necessary places.
+1. Create a new file for them in
+   [`app/utils/providers/{provider-name}.server.ts`](./app/utils/providers) and
+   follow the pattern of the other providers by implementing the
+   [`AuthProvider`](./app/utils/providers/provider.ts) interface.
+1. That's it, you're done.
 
-## Support
+You'll probably be required to set up private keys and other things which will
+likely require a bit of work in [`.env.example`](./.env.example), `.env`, and
+[`app/utils/env.server.ts`](./app/utils/env.server.ts).
 
-- 🆘 Join the
-  [discussion on GitHub](https://github.com/epicweb-dev/epic-stack/discussions)
-  and the [KCD Community on Discord](https://kcd.im/discord).
-- 💡 Create an
-  [idea discussion](https://github.com/epicweb-dev/epic-stack/discussions/new?category=ideas)
-  for suggestions.
-- 🐛 Open a [GitHub issue](https://github.com/epicweb-dev/epic-stack/issues) to
-  report a bug.
-
-## Branding
-
-Want to talk about the Epic Stack in a blog post or talk? Great! Here are some
-assets you can use in your material:
-[EpicWeb.dev/brand](https://epicweb.dev/brand)
-
-## Thanks
-
-You rock 🪨
+The cool thing about this approach is it doesn't actually make a difference
+whether you're using an OIDC provider or not. As long as you satisfy the
+`AuthProvider` interface, you're golden (which is why GitHub's OAuth2 provider
+is supported in the same manner).
