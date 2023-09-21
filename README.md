@@ -1,6 +1,6 @@
 # Epic OIDC Example
 
-[Here's the commit that adds Google Auth](https://github.com/kentcdodds/epic-oidc/commit/cb5a67d1b2fde82522f20b3bb43a2da7a5d1df15).
+[Here's the commit that adds Google Auth](https://github.com/kentcdodds/epic-oidc/commit/517b7b97e37f39bc4b86b249519255e92bb37e72).
 
 This is an updated and simplified version, but the demo for the original version
 is still instructive:
@@ -27,3 +27,9 @@ flow. This example doesn't deal with refresh tokens because we're only using the
 OIDC provider for authentication. If you need to use refresh tokens, then you'll
 need to store them in a database and use them to get new access tokens when
 necessary.
+
+## Mocks
+
+Check out
+[this "setup mocks" commit](https://github.com/kentcdodds/epic-oidc/commit/1a8cead2d28c79ca1509d4d2f06004c1769f998b)
+for how to set up mocks for your tests and local development.
