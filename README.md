@@ -1,54 +1,29 @@
-<div align="center">
-  <h1 align="center"><a href="https://www.epicweb.dev/epic-stack">The Epic Stack 🚀</a></h1>
-  <strong align="center">
-    Ditch analysis paralysis and start shipping Epic Web apps.
-  </strong>
-  <p>
-    This is an opinionated project starter and reference that allows teams to
-    ship their ideas to production faster and on a more stable foundation based
-    on the experience of <a href="https://kentcdodds.com">Kent C. Dodds</a> and
-    <a href="https://github.com/epicweb-dev/epic-stack/graphs/contributors">contributors</a>.
-  </p>
-</div>
+# Epic OIDC Example
 
-```sh
-npx create-remix@latest --install --template epicweb-dev/epic-stack
-```
+[Here's the commit that adds Google Auth](https://github.com/kentcdodds/epic-oidc/commit/cb5a67d1b2fde82522f20b3bb43a2da7a5d1df15).
 
-[![The Epic Stack](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/246885449-1b00286c-aa3d-44b2-9ef2-04f694eb3592.png)](https://www.epicweb.dev/epic-stack)
+This is an updated and simplified version, but the demo for the original version
+is still instructive:
 
-[The Epic Stack](https://www.epicweb.dev/epic-stack)
+[![A frame from a screen cast video of Kent demonstrating the connections page from this demo](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/260885255-938f0150-51a6-47ae-a9ae-daa09c0c6b9d.png)](https://www.epicweb.dev/tips/add-open-id-connect-auth-to-the-epic-stack)
 
-<hr />
+This is an
+[Epic Stack example](https://github.com/epicweb-dev/epic-stack/blob/main/docs/examples.md)
+which demonstrates how to implement authentication using an OpenID Connect
+provider.
 
-## Watch Kent's Introduction to The Epic Stack
+In this example, we have three forms of authentication:
 
-[![screenshot of a YouTube video](https://github-production-user-asset-6210df.s3.amazonaws.com/1500684/242088051-6beafa78-41c6-47e1-b999-08d3d3e5cb57.png)](https://www.youtube.com/watch?v=yMK5SVRASxM)
+1. Username/password (built-into the Epic Stack)
+2. GitHub OAuth2 (built-into the Epic Stack)
+3. Google OpenID Connect (implemented in this example)
 
-["The Epic Stack" by Kent C. Dodds at #RemixConf 2023 💿](https://www.youtube.com/watch?v=yMK5SVRASxM)
+There are no database schema changes necessary for adding an OIDC provider (like
+Google).
 
-## Docs
-
-[Read the docs](https://github.com/epicweb-dev/epic-stack/blob/main/docs)
-(please 🙏).
-
-## Support
-
-- 🆘 Join the
-  [discussion on GitHub](https://github.com/epicweb-dev/epic-stack/discussions)
-  and the [KCD Community on Discord](https://kcd.im/discord).
-- 💡 Create an
-  [idea discussion](https://github.com/epicweb-dev/epic-stack/discussions/new?category=ideas)
-  for suggestions.
-- 🐛 Open a [GitHub issue](https://github.com/epicweb-dev/epic-stack/issues) to
-  report a bug.
-
-## Branding
-
-Want to talk about the Epic Stack in a blog post or talk? Great! Here are some
-assets you can use in your material:
-[EpicWeb.dev/brand](https://epicweb.dev/brand)
-
-## Thanks
-
-You rock 🪨
+This example uses [web-oidc](https://npm.im/web-oidc) and
+[remix-auth](https://npm.im/remix-auth) to implement the OIDC authentication
+flow. This example doesn't deal with refresh tokens because we're only using the
+OIDC provider for authentication. If you need to use refresh tokens, then you'll
+need to store them in a database and use them to get new access tokens when
+necessary.
