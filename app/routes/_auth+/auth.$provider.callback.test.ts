@@ -16,8 +16,8 @@ import { consoleError } from '#tests/setup/setup-test-env.ts'
 import { BASE_URL, convertSetCookieToCookie } from '#tests/utils.ts'
 import { loader } from './auth.$provider.callback.ts'
 
-const ROUTE_PATH = '/auth/github/callback'
-const PARAMS = { provider: 'github' }
+const ROUTE_PATH = '/auth/google/callback'
+const PARAMS = { provider: 'google' }
 
 afterEach(async () => {
 	await deleteGitHubUsers()
